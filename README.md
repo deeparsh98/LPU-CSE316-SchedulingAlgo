@@ -11,14 +11,16 @@ Priority = 1+ Waiting time / Estimated run time.
 
 # Modules/Structures Specification
 > --IMPORTANT MODULES-- 
-1) Process Structure : This structure consists of a skeleton of the details associated with a process viz. ProcessID, ProcessState, WaitingTime, Priority, EstimatedRunTime (ERT).
-2) Priority incrementer/Assigner : This is a module that assigns priority following the requirements of the algorithm.
-3) CPU-State : This structure contains variables which provide information about the current running process, clock value and processor's speed.
-4) Clock Setter : Determines the processor speed.
-5) Process Queue Organiser: This module maintains a queue that at every instance of time, stores the sequence of processes to be dispatched to the CPU based on the priority.
+1) ProcessInitialiser : The module responsible for registering a process as soon as it enters the system.
+2) Process Structure : This structure consists of a skeleton of the details associated with a process viz. ProcessID, ProcessState, WaitingTime, Priority, EstimatedRunTime (ERT).
+3) Priority incrementer/Assigner : This is a module that assigns priority following the requirements of the algorithm.
+4) CPU-State : This structure contains variables which provide information about the current running process, clock value and processor's speed.
+5) Clock Setter : Determines the processor speed.
+6) Process Queue Organiser: This module maintains a queue that at every instance of time, stores the sequence of processes to be dispatched to the CPU based on the priority.
+7) Dispatcher : The one responsible for assigning the CPU, a process for execution.
 
 > -- OPTIONAL MODULES--
-6) Estimated Run Time Calculator (If the ERT is not predefined).
+8) Estimated Run Time Calculator (If the ERT is not predefined).
 
 
 
