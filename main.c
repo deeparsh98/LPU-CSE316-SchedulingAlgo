@@ -1,14 +1,15 @@
 #include<stdio.h>
 #include<stdbool.h>
 #include<stdlib.h>
+#include<pthread.h>
 
-int ID_COUNTER=0,TIMER=0;
-int interrupt=0;
 const char ST_ARRAY[][11]={"TERMINATED","WAITING","RUNNING","READY"};
 //STRUCTURES AND SKELETONS
 enum States{
 TERMINATED,WAITING,RUNNING,READY
 };
+
+
 struct ProcessStructure{
 	int PID,ArrivalTime;
 	int priority;
@@ -22,7 +23,7 @@ struct P_queue{
 	int ERT;
 	int priority;
 	struct P_queue* next;
-}*front,*rear;
+}*front=NULL,*rear=NULL;
 
 
 int Del_queue(){
@@ -100,14 +101,21 @@ bool Ins_queue(int pid,int priority, int ert){
 struct CPU_State{
 	int Cur_Process;
 	int Clock_Speed;
-}CPU;
+	int PROCESS_COUNTER;
+	int CLOCK;
+	int INTERRUPT;
+};
 
+struct C_P{
+	struct CPU_State* CPU;
+	struct ProcessStructure* P;
+};
 //MODULES
 
 bool PriorityAssigner(struct ProcessStructure *p,int n){
 	for (int i=0;i<n;i++){
 		if((p+i)->state==READY||(p+i)->state==WAITING){
-		//checking below if waittime is negative
+		//check if waittime is negative
 			(p+i)->priority=((p+i)->WaitTime)<0 ? 1+0/((p+i)->ERT) :1+((p+i)->WaitTime)/((p+i)->ERT);
 		}
 	}
@@ -135,8 +143,8 @@ struct ProcessStructure ProcessInitialiser(int PID,int ERT){
 	p.PID=PID;
 	p.ERT=ERT;
 	p.RT=ERT;
-	p.ArrivalTime=PID;
-	p.WaitTime=-p.ArrivalTime;
+	p.ArrivalTime=0;
+	p.WaitTime=0;
 	//priority
 	p.state=WAITING;
 	PriorityAssigner(&p,1);
@@ -146,7 +154,7 @@ struct ProcessStructure ProcessInitialiser(int PID,int ERT){
 
 }
 
-struct ProcessStructure* ProcessRegister(){
+struct ProcessStructure* ProcessRegister(int* ID_COUNTER){
 	int ch;
 	int temp_ERT;
 	struct ProcessStructure* P=(struct ProcessStructure*)malloc(sizeof(struct ProcessStructure));
@@ -154,7 +162,7 @@ struct ProcessStructure* ProcessRegister(){
 	do{
 		printf("ENTER ERT\n");
 		scanf("%d",&temp_ERT);
-		*(P+i)=ProcessInitialiser(++ID_COUNTER,temp_ERT);
+		*(P+i)=ProcessInitialiser(++(*ID_COUNTER),temp_ERT);
 		//ALLOCATING MEMORY FOR ANOTHER PROCESS
 		printf("ANYMORE PROCESS?\n");
 		scanf("%d",&ch);
@@ -172,18 +180,19 @@ struct ProcessStructure* ProcessRegister(){
 
 }
 
-bool Dispatcher(struct ProcessStructure* P){
-	if(CPU.Cur_Process!=-1){     //Check if CPU is having no process. Just in case...
+bool Dispatcher(struct ProcessStructure* P,struct CPU_State* CPU){
+	int CurP=CPU->Cur_Process;
+	if(CurP!=-1){     //Check if CPU is having no process. Just in case...
 		//if state is not TERMINATED
-		if((P+CPU.Cur_Process-1)->state!=TERMINATED){
-			Ins_queue(CPU.Cur_Process,(P+CPU.Cur_Process-1)->priority,(P+CPU.Cur_Process-1)->ERT);
+		if((P+CurP-1)->state!=TERMINATED){
+			Ins_queue(CurP,(P+CurP-1)->priority,(P+CurP-1)->ERT);
 			//CHANGE STATE TO READY
-			(P+CPU.Cur_Process-1)->state=READY;
+			(P+CurP-1)->state=READY;
 		}
 	}
-	CPU.Cur_Process=Del_queue();
+	CPU->Cur_Process=Del_queue();
 	//CHANGE STATE TO RUNNING
-	(P+CPU.Cur_Process-1)->state=RUNNING;
+	(P+CPU->Cur_Process-1)->state=RUNNING;
 }
 
 //SChEDULAR
@@ -197,115 +206,91 @@ bool Schedular(struct ProcessStructure* P,int n){
 			Ins_queue((P+i)->PID,(P+i)->priority,(P+i)->ERT);
 	}
 }
-
-bool Processor(struct ProcessStructure* P){
-
-	Dispatcher(P);
-/*
-	struct P_queue *p=front;
-	while(p!=NULL){
-	printf("%d ",p->PID);
-	p=p->next;
+void* Thrower(void* Object){
+	//This function throws processes in the queue
+	//and sets the arrival time when user presses a specific key.
+	struct ProcessStructure* P=((struct C_P*)Object)->P;
+	struct CPU_State* CPU=((struct C_P*)Object)->CPU;
+	int c;
+	for(int i=0;i< (CPU->PROCESS_COUNTER);i++){
+	scanf(" %d",&c);
+	printf("INPUT ENTERED\n");
+	if(c<=0){
+		CPU->INTERRUPT=1;
+		break;
 	}
-	printf("\n%d",CPU.Cur_Process);*/
+	if(P[c-1].state!=TERMINATED){
+	Ins_queue(c,P[c-1].priority,P[c-1].ERT);
+	P[c-1].state=READY;
+	}
+	}
+	while(c>0)
+		scanf(" %d",&c);
+	CPU->INTERRUPT=1;
+	//LOCK=0;
+	pthread_exit(NULL);
+}
 
-	interrupt=-20;
+void* Processor(void* Object){
+
+struct ProcessStructure *P=((struct C_P*)Object)->P;
+struct CPU_State* CPU=((struct C_P*)Object)->CPU;
+	//while(LOCK==1);
+	Dispatcher(P,CPU);
 	do{
 	//DO WHILE NO PROCESS LEFT...
-	printf("TIMER : %d",TIMER);
-
-	if(front!=NULL||(CPU.Cur_Process!=-1)){  //if CPU IS NOT IDLE
-		WaitTimeIncrementer(P,ID_COUNTER);
-		PriorityAssigner(P,ID_COUNTER);
-		Schedular(P,ID_COUNTER);
-		printf(" - P%d Running\n",CPU.Cur_Process);
-		if(ERTDecrementer(P+CPU.Cur_Process-1)==0)
-			Dispatcher(P);
+	printf("TIMER : %d",CPU->CLOCK);
+	if((front!=NULL||CPU->Cur_Process!=-1)&&CPU->Cur_Process!=-1){  //if CPU IS NOT IDLE
+		WaitTimeIncrementer(P,CPU->PROCESS_COUNTER);
+		PriorityAssigner(P,CPU->PROCESS_COUNTER);
+		Schedular(P,CPU->PROCESS_COUNTER);
+		printf(" - P%d Running\n",CPU->Cur_Process);
+		if(ERTDecrementer(P+CPU->Cur_Process-1)==0)
+			Dispatcher(P,CPU);
 	}
-	else if(CPU.Cur_Process==-1)
+	else if(CPU->Cur_Process==-1){
 		printf(" - CPU is IDLE\n");
-	sleep(1);
-	TIMER++;
-	interrupt++;
-	}while((front!=NULL||interrupt<=0)&&interrupt<=0);
-
-}
-
-bool Simulation(int timer,int pidCount){
-	front=NULL;
-	rear=NULL;
-	TIMER=timer;
-	ID_COUNTER=pidCount;
-	struct ProcessStructure* processes=ProcessRegister();
-	//pid_t pid=fork();
-	int pid=2;
-	switch(pid){
-	case 0:
-		//Calls thrower...
-		break;
-	default:
-		Processor(processes);
-		//calls Processing
+		Dispatcher(P,CPU);
 	}
-	
-	free(processes);
-	printf("PROCESSES FREED\n");
+	sleep(1);
+	CPU->CLOCK++;
+	}while((front!=NULL||CPU->INTERRUPT<=0)&&CPU->INTERRUPT<=0);
+
+	//EXITING THREAD
+	printf("THREAD EXIT\n");
+	pthread_exit(NULL);
 }
 
-int main(){
-	CPU.Cur_Process=-1;
-	//CPU.Clock_Speed=1;
-	//Simulation(0,0);
-	front=NULL;
-	rear=NULL;
-	struct ProcessStructure p[4];
-	TIMER=0;
-	ID_COUNTER=0;
-	Ins_queue(1,1,4);
-	Ins_queue(2,1,2);
-	Ins_queue(3,1,5);
-	Ins_queue(4,1,3);
-	//printf("%d %d %d \n",front->PID,front->next->PID,front->next->next->PID);
+bool Simulation(struct C_P* Instance){
+	pthread_t Process,Throw;
 
-	p[0].PID=1;
-	p[0].ERT=4;
-	p[0].priority=4;
-	p[0].state=READY;
-	p[0].ArrivalTime=0;
-	p[0].WaitTime=0;
-	p[0].RT=4;
-
-	p[1].PID=2;
-	p[1].ERT=2;
-	p[1].priority=5;
-	p[1].state=READY;
-	p[1].WaitTime=0;
-	p[1].RT=2;
-
-	p[2].PID=3;
-	p[2].ERT=5;
-	p[2].priority=6;
-	p[2].state=READY;
-	p[2].WaitTime=0;
-	p[2].RT=5;
-
-	p[3].PID=4;
-	p[3].ERT=3;
-	p[3].priority=4;
-	p[3].state=READY;
-	p[3].WaitTime=0;
-	p[3].RT=3;
-	ID_COUNTER=4;
-	//PriorityAssigner(p,4);
+	Instance->P=ProcessRegister(&Instance->CPU->PROCESS_COUNTER);
 	
-	/*for(int i=1;i<=5;i++){
-	printf("%d %d %d \n",front->PID,front->next->PID,front->next->next->PID);//,front->next->next->next->PID);
-	sleep(1);
-	WaitTimeIncrementer(p,4);
-	PriorityAssigner(p,4);
-	Schedular(p,4);
-	}*/
-	Processor(p);
+	pthread_create(&Process,NULL,&Processor,Instance);
+	pthread_create(&Throw,NULL,&Thrower,Instance);
+	pthread_join(Process,NULL);
+	pthread_join(Throw,NULL);
+
+	free(Instance->P);
+	printf("MEMORY FREED\n");
+}
+bool CPU_Initialiser(struct C_P* instancePtr,int Clock_Speed){
+	struct CPU_State* Cptr=instancePtr->CPU;
+	Cptr->Cur_Process=-1;
+	Cptr->Clock_Speed=Clock_Speed;
+	Cptr->CLOCK=0;
+	Cptr->INTERRUPT=0;
+	Cptr->PROCESS_COUNTER=0;
+	return 1;
+}
+int main(){
+	struct CPU_State cpu;
+	struct C_P an_instance;
+	an_instance.CPU=&cpu;
+	an_instance.P=NULL;//avoidance of the wild pointer...
+	if(!CPU_Initialiser(&an_instance,1))
+		printf("Error in initialising...!!");
+	Simulation(&an_instance);
 	truncate();
 }
 
