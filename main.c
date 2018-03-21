@@ -137,20 +137,19 @@ bool ERTDecrementer(struct ProcessStructure *p){
 	}
 	return 1;
 }
-struct ProcessStructure ProcessInitialiser(int PID,int ERT){
-	struct ProcessStructure p;
+bool ProcessInitialiser(struct ProcessStructure* p,int PID,int ERT){
 
-	p.PID=PID;
-	p.ERT=ERT;
-	p.RT=ERT;
-	p.ArrivalTime=0;
-	p.WaitTime=0;
+	p->PID=PID;
+	p->ERT=ERT;
+	p->RT=ERT;
+	p->ArrivalTime=0;
+	p->WaitTime=0;
 	//priority
-	p.state=WAITING;
-	PriorityAssigner(&p,1);
+	p->state=WAITING;
+	PriorityAssigner(p,1);
 	//p.priority=1;
 
-	return p;
+	return 1;
 
 }
 
@@ -162,7 +161,7 @@ struct ProcessStructure* ProcessRegister(int* ID_COUNTER){
 	do{
 		printf("ENTER ERT\n");
 		scanf("%d",&temp_ERT);
-		*(P+i)=ProcessInitialiser(++(*ID_COUNTER),temp_ERT);
+		ProcessInitialiser((P+i),++(*ID_COUNTER),temp_ERT);
 		//ALLOCATING MEMORY FOR ANOTHER PROCESS
 		printf("ANYMORE PROCESS?\n");
 		scanf("%d",&ch);
