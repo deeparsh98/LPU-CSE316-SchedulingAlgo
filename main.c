@@ -10,7 +10,7 @@ int main(){
 	struct C_P an_instance;
 	an_instance.CPU=&cpu;
 	an_instance.P=NULL;//avoidance of the wild pointer...
-	if(!CPU_Initialiser(&an_instance,2))
+	if(!CPU_Initialiser(&an_instance,1))
 		printf("Error in initialising...!!");
 	
 	Simulation(&an_instance);

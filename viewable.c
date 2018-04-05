@@ -6,6 +6,7 @@
 #include<unistd.h>
 #include<stdarg.h>
 #include<pthread.h>
+#define dbug printf("flag\n");
 pthread_mutex_t lock;
 void init(){
 	clearscr();
@@ -50,36 +51,79 @@ void border(struct i_frame* frame,char top,char side,int visibility){
 			}
 		}
 	}
-	printf("%c[%d;%df",0x1B,frame->y+frame->cursor_y,frame->x+frame->cursor_x);
+	//printf("%c[%d;%df",0x1B,frame->y+frame->cursor_y,frame->x+frame->cursor_x);
 	pthread_mutex_unlock(&lock);
 }
+int countt=0;
 int fprint(struct i_frame* myFrame,char *s,...){
+			for(int i=0;i< myFrame->d;i++){
+			printf("%c[%d;%df",0x1B,myFrame->y+i,myFrame->x);
+				for(int j=0;j<myFrame->l;j++){
+					printf(" ");
+				}
+				printf("\n");
+			}
 	pthread_mutex_lock(&lock);
-	int temp=0,k=0,flag=0;
+	int temp=0,k=0,flag=0,check=0;
 	va_list list;
 	va_start(list,s);
 	int size=vsprintf(myFrame->t_array,s,list);
 	//vprintf(s,list);
-	va_end(list);
+	//int NoT=1;
+	if(myFrame->t_array+size>(myFrame->f_array+(myFrame->l*myFrame->d))){
+		printf("%d",++countt);
+		while(myFrame->t_array+size>myFrame->f_array+(myFrame->l*myFrame->d)&&myFrame->t_array!=myFrame->f_array){
+			//temp=myFrame->t_array-(myFrame->f_array+myFrame->l*(myFrame->d-1))
+			check=1;
+			memmove(myFrame->f_array,myFrame->f_array+myFrame->l,myFrame->l*((myFrame->d)-1));
+			memset(myFrame->f_array+myFrame->l*(myFrame->d-1),(int)' ',myFrame->l);
+			myFrame->t_array=myFrame->t_array-myFrame->l;
+			size=vsprintf(myFrame->t_array,s,list);
+		}
+	}/*
+	printf("\n\n");
+			for(int i=0;i< myFrame->d;i++){
+				for(int j=0;j<myFrame->l;j++){
+					printf("%c",*(myFrame->f_array+i*myFrame->l+j));
+				}
+				printf("\n");
+			}*/
 	myFrame->t_array=myFrame->t_array+size;//MOVING THE BUFFER POINTER to apropriate pos after the current fprint();
-
+	va_end(list);
+	
 	//sprintf(myFrame->f_array,"adfjkhdsjkfhdsjkkhs");
 	//PRINTING THE BUFFER ARRAY..
 	for(int i=0;i< myFrame->d;i++){
-		printf("%c[%d;%df",0x1B,myFrame->y+i+temp,myFrame->x);//Navigate the cursor to (x,y) fro ith row
+		printf("%c[%d;%df",0x1B,myFrame->y+i,myFrame->x);//Navigate the cursor to (x,y) fro ith row
+		//myFrame->cursor_y=i;
 		for(int j=0;j< myFrame->l;j++){//printing individual row of the buffer.
 			if(*(myFrame->f_array+i*myFrame->l+j)=='\0'){//Till the buffer contains null
-				myFrame->cursor_x=j;
-				myFrame->cursor_y=i;
+				//printf("\n*%d-%d*",i,j);
+				//myFrame->cursor_x=j;
+				//myFrame->cursor_y=i;
 				size=i*myFrame->l+j;
 				flag=1;
-				break;
+				//break;
 			}
 			if(*(myFrame->f_array+i*myFrame->l+j)=='\n'){
 				//myFrame->l*myFrame->d-(i*myFrame->l+j-1)
-				memmove(myFrame->f_array+(i+1)*myFrame->l,myFrame->f_array+i*myFrame->l+j+1,myFrame->l*myFrame->d-(i+1)*myFrame->l);
+				if(i==myFrame->d-1||check&&((myFrame->cursor_x+myFrame->l-j)>myFrame->l)){
+				//	printf("\n\n%d",Frame->cursor_x);
+					memcpy(myFrame->f_array,myFrame->f_array+myFrame->l,myFrame->l*((myFrame->d)-1));
+					myFrame->t_array=myFrame->t_array-myFrame->l;
+					memset(myFrame->f_array+myFrame->l*(myFrame->d-1),(int)' ',myFrame->l);
+					flag=1;
+					i--;
+				}
+				memcpy(myFrame->f_array+(i+1)*myFrame->l,myFrame->f_array+i*myFrame->l+j+1,myFrame->l*myFrame->d-(i+1)*myFrame->l);
 				memset(myFrame->f_array+i*myFrame->l+j,(int)' ',myFrame->l-j);
 				myFrame->t_array=myFrame->t_array+myFrame->l-j-1;
+				if(flag=1){
+					
+					i=-1;j=0;
+					flag=0;
+					break;
+				}
 				continue;
 			}
 			/*	temp++;
@@ -91,8 +135,9 @@ int fprint(struct i_frame* myFrame,char *s,...){
 			}*/
 			printf("%c",*(myFrame->f_array+i*myFrame->l+j));
 		}
-		if(flag==1)
+		if(flag==1){
 			break;
+		}
 	}
 	if(flag==0){
 		size=myFrame->l*myFrame->d;
@@ -103,6 +148,8 @@ int fprint(struct i_frame* myFrame,char *s,...){
 	//memset(myFrame->f_array,0,myFrame->l*myFrame->d);
 	//printf("%c[%d;%df",0x1B,myFrame->y+myFrame->d,myFrame->x+myFrame->l);
 	pthread_mutex_unlock(&lock);
+	myFrame->cursor_y=(myFrame->t_array-myFrame->f_array)/myFrame->l;
+	myFrame->cursor_x=myFrame->t_array-(myFrame->f_array+myFrame->cursor_y*myFrame->l);
 	return size;
 }
 
@@ -112,8 +159,9 @@ void seek_cur(int y,int x){
 	pthread_mutex_unlock(&lock);
 }
 void clear(struct i_frame* frame){
-	memset(frame->f_array,(int)' ',frame->l*frame->d);
-	fprint(frame,"",0);
+	memset(frame->f_array,(int)' ',frame->l*(frame->d));
+	//memset(frame->f_array+y_offset*frame->l-1,0,1);
+	fprint(frame,"");
 	seek_cur(frame->y,frame->x);
 	frame->t_array=frame->f_array;
 	frame->cursor_x=0;
@@ -156,23 +204,52 @@ int fscan(struct i_frame* frame,char* s,...){
 	/*printing next line in buffer so that fprint prints on appropriate position i.e in the beginning of the next line*/ 
 	*(frame->t_array)='\n';
 	frame->t_array+=1;
-	
-	return size;
+/*	fprint(frame,"\0");
+	printf("\n\n\n\nENTERED");
+					for(int i=0;i< frame->d;i++){
+						for(int j=0;j<frame->l;j++){
+						if(*(frame->f_array+i*frame->l+j)!='\n')
+							printf("%c",*(frame->f_array+i*frame->l+j));
+						else
+							printf("*");
+						}
+						printf("\n");
+					}
+*/	return size;
 
 }
-
 /*
 int main(){
 	init();
-	struct i_frame* Frame=makeframe(30,30,10,10);
-	border(Frame,'.','.',VISIBLE);
-	int x;
-	fprint(Frame,"ENTER AGE...\n");
+	struct i_frame* Frame=makeframe(10,10,10,10);
+	border(Frame,'-','|',VISIBLE);
+	int x,i=0;
+	fprint(Frame,"ABCDEFGHIJKLMNOPQ");
+	fprint(Frame,"RSTUVWXYZ123456789");
+	fprint(Frame,"RSTUVWXYZ123456789");
+	fprint(Frame,"RSTUVWXYZ123456789");
+	fprint(Frame,"RSTUVWXYZ123456789");
+	fprint(Frame,"RSTU\nVWXYZ\n12345678");
+	fprint(Frame,"sdfsa\n");
 	fscan(Frame,"%d",&x);
-	fprint(Frame,"YOUR AGE IS %d\n",x);
+	//printf("\n\n%d",Frame->cursor_x);
+//	printf("\n%d",Frame->cursor_x);
+	//while(i<5){printf("\n");fprint(Frame,"ENTERING");sleep(1);i++;}
+	printf("\n\n");
+			for(int i=0;i< Frame->d;i++){
+				for(int j=0;j<Frame->l;j++){
+					printf("%c",*(Frame->f_array+i*Frame->l+j));
+				}
+				printf("\n");
+			}
+	//fscan(Frame,"%d",&x);
+	//fprint(Frame,"YOUR AGE IS %d\n",x);
+	seek_cur(Frame->d+Frame->y,Frame->x+Frame->l);
 	delframe(Frame);
-	printf("\n");
+	//printf("\n");
+
 	return 0;
 
 }*/
+
 

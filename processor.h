@@ -9,7 +9,7 @@ TERMINATED,WAITING,RUNNING,READY
 
 struct CPU_State{
 	int Cur_Process;
-	int Clock_Speed;
+	float Clock_Speed;
 	int PROCESS_COUNTER;
 	int CLOCK;
 	int INTERRUPT;
@@ -22,7 +22,7 @@ struct C_P{
 
 struct ProcessStructure{
 	int PID,ArrivalTime;
-	int priority;
+	float priority;
 	int ERT,RT,WaitTime;
 	enum States state;
 };//structure definition that stores processes with their details.
@@ -30,7 +30,7 @@ struct ProcessStructure{
 struct P_queue{
 	int PID;
 	int ERT;
-	int priority;
+	float priority;
 	struct P_queue* next;
 };
 /* A node of struct type for the processor queue */
@@ -45,7 +45,7 @@ bool Schedular(struct ProcessStructure* P,int n);
 void* Thrower(void* Object);
 void* Processor(void* Object);
 bool Simulation(struct C_P* Instance);
-bool CPU_Initialiser(struct C_P* instancePtr,int Clock_Speed);
+bool CPU_Initialiser(struct C_P* instancePtr,float Clock_Speed);
 
 
 #endif

@@ -3,6 +3,6 @@
 
 int Del_queue();
 bool truncate();
-bool Ins_queue(int pid,int priority, int ert);
+bool Ins_queue(int pid,float priority, int ert);
 
 #endif 
