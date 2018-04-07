@@ -13,6 +13,7 @@ struct CPU_State{
 	int PROCESS_COUNTER;
 	int CLOCK;
 	int INTERRUPT;
+	int nop;
 };//Structure for CPU instances.
 
 struct C_P{
@@ -39,7 +40,7 @@ bool PriorityAssigner(struct ProcessStructure *p,int n);
 bool WaitTimeIncrementer(struct ProcessStructure *p,int n);
 bool ERTDecrementer(struct ProcessStructure *p);
 bool ProcessInitialiser(struct ProcessStructure* p,int PID,int ERT);
-struct ProcessStructure* ProcessRegister(int* ID_COUNTER);
+struct ProcessStructure* ProcessRegister(struct CPU_State* CPU);
 bool Dispatcher(struct ProcessStructure* P,struct CPU_State* CPU);
 bool Schedular(struct ProcessStructure* P,int n);
 void* Thrower(void* Object);

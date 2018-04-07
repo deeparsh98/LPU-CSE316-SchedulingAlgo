@@ -3,7 +3,6 @@
 #include"processor.h"
 #include"priority_q.h"
 
-const char ST_ARRAY[][11]={"TERMINATED","WAITING","RUNNING","READY"};
 //STRUCTURES AND SKELETONS
 int main(){
 	struct CPU_State cpu;
