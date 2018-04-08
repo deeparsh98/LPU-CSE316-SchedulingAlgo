@@ -2,7 +2,8 @@
 #define __processes_h__
 #include<stdbool.h>
 #include<stdio.h>
-
+#define ACTIVE 0
+#define INITIAL 1
 enum States{
 TERMINATED,WAITING,RUNNING,READY
 };//enumeration to represent states of a process
@@ -14,6 +15,7 @@ struct CPU_State{
 	int CLOCK;
 	int INTERRUPT;
 	int nop;
+	int idleFor;
 };//Structure for CPU instances.
 
 struct C_P{

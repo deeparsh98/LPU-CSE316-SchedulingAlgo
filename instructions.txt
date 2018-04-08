@@ -1,0 +1,14 @@
+FOLLOW THESE INSTRUCTIONS TO GO EASY WITH THE SIMULATION.
+
+-Its a simulation based program that provides a dummy environment to show to execution of the processes in an operating System.
+-At first, it asks the user to enter the Burst time (Estd. run time) of the processes.
+-The processes are in waiting state now and have not yet arrived in the system.
+-Post the entry of the processes, the processor starts and simultaneously, the user is free to enter the PID of any of the processes entered in the above step to simulate the arrival of a process in the system.
+-The CPU remains idle till the arrival of the very first process.
+-Entering a value less than 1 in this practice would act as an interrupt and will stop the simulation.
+-During the simulation, user would be able to see the processes in the queue as well as in the CPU (the running process).
+-After the simulation, the statistical data would be shown in another frame which would be used to analyse the simulation.
+
+ABBREVIATIONS :
+	ERT : ESTIMATED RUN TIME
+	PID : PROCESS IDENTIFICATION

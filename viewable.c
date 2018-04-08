@@ -9,12 +9,11 @@
 #define dbug printf("flag\n");
 pthread_mutex_t lock;
 void init(){
-	clearscr();
 	pthread_mutex_init(&lock,NULL);
 }
 struct i_frame* makeframe(int l,int d,int x,int y){
 	struct i_frame* frame=(struct i_frame*)malloc(sizeof(struct i_frame)); //dynamically allocated memory for the structure
-	frame->f_array=(char*)calloc(1,(l+2)*d);//dynamically allocated array
+	frame->f_array=(char*)calloc(1,l*d);//dynamically allocated array
 	frame->x=x;
 	frame->y=y;
 	frame->l=l;
@@ -28,6 +27,7 @@ struct i_frame* makeframe(int l,int d,int x,int y){
 void delframe(struct i_frame* frame){
 	free(frame->f_array);//freeing the space for a dynamic data item of the frame
 	free(frame);//deallocating the frame itself;
+	frame=NULL;
 }
 void border(struct i_frame* frame,char top,char side,int visibility){
 	pthread_mutex_lock(&lock);

@@ -41,7 +41,7 @@ void print_queue(struct i_frame* frame,struct ProcessStructure* p){
 	while(ptr!=NULL){
 		if(ptr!=front)
 			fprint(frame,"\n");
-		fprint(frame,"%d    %d    %f",ptr->PID,p[ptr->PID-1].WaitTime,ptr->priority);
+		fprint(frame,"%d    %d    %f<- ",ptr->PID,p[ptr->PID-1].WaitTime,ptr->priority);
 		ptr=ptr->next;
 	}
 }
@@ -121,7 +121,7 @@ bool ProcessInitialiser(struct ProcessStructure* p,int PID,int ERT){
 	p->PID=PID;
 	p->ERT=ERT;
 	p->RT=ERT;
-	p->ArrivalTime=0;
+	p->ArrivalTime=-1;
 	p->WaitTime=0;
 	//priority
 	p->state=WAITING;
@@ -135,7 +135,7 @@ bool ProcessInitialiser(struct ProcessStructure* p,int PID,int ERT){
 struct ProcessStructure* ProcessRegister(struct CPU_State* CPU){
 	int ch;
 	int temp_ERT;
-	struct i_frame* e_frame=makeframe(30,30,100,8),*headingE=makeframe(30,3,100,4);
+	struct i_frame* e_frame=makeframe(30,30,65,12),*headingE=makeframe(30,3,65,8);
 	border(e_frame,'-','|',VISIBLE);
 	fprint(headingE,"\n\nPROCESS ENTRY");
 	struct ProcessStructure* P=(struct ProcessStructure*)malloc(sizeof(struct ProcessStructure));
@@ -161,7 +161,7 @@ struct ProcessStructure* ProcessRegister(struct CPU_State* CPU){
 			i++;
 		}
 	}while(ch);
-
+	clearscr();
 	delframe(e_frame);
 	delframe(headingE);
 	return P;
@@ -202,7 +202,7 @@ void* Thrower(void* Object){
 	//struct i_frame *t_frame=makeframe(1,1,1,80); 
 	int c;
 	for(int i=0;i< (CPU->PROCESS_COUNTER);i++){
-	scanf("%d",&c);
+	scanf(" %d",&c);
 
 	if(c<=0){
 		CPU->INTERRUPT=1;
@@ -213,20 +213,23 @@ void* Thrower(void* Object){
 	P[c-1].state=READY;
 	P[c-1].ArrivalTime=CPU->CLOCK;
 	}
+	else i--;
 	}
 	while(c>0)
-		scanf("%d",&c);
+		scanf(" %d",&c);
 	CPU->INTERRUPT=1;
 	
 	//LOCK=0;
 	pthread_exit(NULL);
 }
 
-void makeProcessTable(struct i_frame* frame,struct ProcessStructure* p,struct CPU_State* cpu){
+void makeProcessTable(struct i_frame* frame,struct ProcessStructure* p,struct CPU_State* cpu,int type){
 	for(int i=0;i< cpu->nop;i++){
-		if(p[i].state!=WAITING){
-			fprint(frame,"%d      %d      %d      %d      %s\n",p[i].PID,p[i].ERT,p[i].ArrivalTime,p[i].WaitTime,ST_ARRAY[p[i].state]);
+		if(type){
+			fprint(frame,"   %d       %d\n",p[i].PID,p[i].ERT);
 		}
+		else if(p[i].state!=WAITING)
+			fprint(frame,"%d      %d      %d      %d      %s\n",p[i].PID,p[i].ERT,p[i].ArrivalTime,p[i].WaitTime,ST_ARRAY[p[i].state]);
 		else
 			fprint(frame,"\n");
 	}
@@ -237,49 +240,62 @@ void* Processor(void* Object){
 	struct ProcessStructure *P=((struct C_P*)Object)->P;
 	struct CPU_State* CPU=((struct C_P*)Object)->CPU;
 	//while(LOCK==1);
-
-	struct i_frame *a_frame=makeframe(40,CPU->nop+1,50,18),*p_frame=makeframe(25,3,10,8),*timer_frame=makeframe(8,3,38,8),*q_frame=makeframe(25,5,10,18);
-	struct i_frame *headingA=makeframe(40,3,50,14),*headingP=makeframe(35,3,10,4),*headingQ=makeframe(25,3,10,14);
+	int temp_flag;//STORES THE RETURNED VALUE OF ERTDecrementer()
+	struct i_frame *a_frame=makeframe(45,CPU->nop+1,110,8),*p_frame=makeframe(25,3,10,8),*timer_frame=makeframe(8,3,38,8),*q_frame=makeframe(25,10,10,18);
+	struct i_frame *headingA=makeframe(40,3,110,4),*headingP=makeframe(35,3,10,4),*headingQ=makeframe(25,3,10,14);
 	border(a_frame,'-','|',VISIBLE);
 	border(p_frame,'-',':',VISIBLE);
 	border(timer_frame,'-',':',VISIBLE);
 	border(q_frame,'-','|',VISIBLE);
-	fprint(headingA,"    PROCESS TABLE\n\nPID   ERT   ARR. T.   WAIT T.   STATE");
+	fprint(headingA,"    ACTIVE PROCESS TABLE\n\nPID   ERT   ARR. T.   WAIT T.   STATE");
 	fprint(headingP,"    PROCESSOR\n\n PID   WAIT T.  REM. T.     CLOCK");
 	fprint(headingQ,"SCHEDULING QUEUE\n\n PID   WAIT T.  PRIORITY");
 	//Dispatcher(P,CPU);
 	do{
 	//DO WHILE NO PROCESS LEFT...
-	makeProcessTable(a_frame,P,CPU);
+	
+	makeProcessTable(a_frame,P,CPU,ACTIVE);
 	fprint(timer_frame,"\n T : %d",CPU->CLOCK);
+	
+	printf("\n");
+	usleep((int)CPU->Clock_Speed*1000000);
+	clear(p_frame);
+	clear(a_frame);
+	clear(timer_frame);
+	if(front!=NULL&&CPU->Cur_Process==-1)
+		Dispatcher(P,CPU);
 	if((front!=NULL||CPU->Cur_Process!=-1)&&CPU->Cur_Process!=-1){  //if CPU IS NOT IDLE
 		WaitTimeIncrementer(P,CPU->PROCESS_COUNTER);
 		PriorityAssigner(P,CPU->PROCESS_COUNTER);
 		Schedular(P,CPU->PROCESS_COUNTER);
-		fprint(p_frame,"\n %d      %d      %d",CPU->Cur_Process,P[CPU->Cur_Process-1].WaitTime,P[CPU->Cur_Process-1].RT);
+		
 		clear(q_frame);
-		print_queue(q_frame,P);	
-		if(ERTDecrementer(P+CPU->Cur_Process-1)==0)
+		print_queue(q_frame,P);
+		fprint(p_frame,"\n %d      %d      %d",CPU->Cur_Process,P[CPU->Cur_Process-1].WaitTime,P[CPU->Cur_Process-1].RT);
+		temp_flag=ERTDecrementer(P+CPU->Cur_Process-1);
+		if(temp_flag==0)
 			Dispatcher(P,CPU);
+		//if(CPU->Cur_Process!=-1)
+//			fprint(p_frame,"\n %d      %d      %d",CPU->Cur_Process,P[CPU->Cur_Process-1].WaitTime,P[CPU->Cur_Process-1].RT);
+		//else{
+		//	fprint(p_frame,"\n       CPU IS IDLE");
+		//CPU->idleFor++;
+		//}
 	}
 	else if(CPU->Cur_Process==-1){
-		fprint(p_frame,"\n       CPU IS IDLE");
 		Dispatcher(P,CPU);
+		//if(CPU->Cur_Process==-1){
+			fprint(p_frame,"\n       CPU IS IDLE");
+		CPU->idleFor++;
+		//}
+	//	else{
+		//	fprint(p_frame,"\n %d      %d      %d",CPU->Cur_Process,P[CPU->Cur_Process-1].WaitTime,P[CPU->Cur_Process-1].RT);
+		//}
 	}
-
-	if(CPU->CLOCK%2==0)
-		border(timer_frame,'-',':',NO_VISIBLE);
-	else
-		border(timer_frame,'-',':',VISIBLE);
-	printf("\n");
-	usleep((int)CPU->Clock_Speed*1000000);
 	CPU->CLOCK++;
-	clear(p_frame);
-	clear(a_frame);
-	clear(timer_frame);
+
 	}while((front!=NULL||CPU->INTERRUPT<=0)&&CPU->INTERRUPT<=0);
 	//EXITING THREAD
-	seek_cur(50,2);
 	//DEALLOCATING MEMORY USED BY THE FRAMES
 	delframe(a_frame);
 	delframe(p_frame);
@@ -292,21 +308,45 @@ void* Processor(void* Object){
 	if(front!=NULL){
 	truncate();
 	}
-	printf("THREAD EXIT\n");
+	CPU->CLOCK--;
 	pthread_exit(NULL);
+}
+void printStatistics(struct ProcessStructure* p,struct CPU_State* cpu){
+	struct i_frame *s_frame=makeframe(10,10,30,32), *headingS=makeframe(19,10,10,32);
+	border(headingS,'-','|',VISIBLE);
+	fprint(headingS,"STATISTICS\n\nNO. OF PROCESSES\nTOTAL WAIT TIME\nTURNAROUND TIME\nCPU USE TIME\nUSAGE+IDLE TIME\nEFFICIENCY");
+	border(s_frame,'-',':',VISIBLE);
+	int rt=0,wt=0;
+	for(int i=0;i< cpu->nop;i++){
+		rt+=p[i].ERT;
+		wt+=p[i].WaitTime;
+	}
+	fprint(s_frame,"  VALUES\n\n  %d\n  %d\n  %d\n  %d\n  %d\n  %0.4f",cpu->nop,wt,wt+rt,rt,rt+cpu->idleFor-1,100.0*((float)rt/(rt+cpu->idleFor-1)));
+	delframe(headingS);
+	delframe(s_frame);
 }
 
 bool Simulation(struct C_P* Instance){
 	pthread_t Process,Throw;
 	init();
 	Instance->P=ProcessRegister(Instance->CPU);
+	struct i_frame *d_frame=makeframe(20,Instance->CPU->nop+1,70,8), *headingD=makeframe(20,3,70,4), *headingM=makeframe(130,2,20,2);
+	border(d_frame,'-','|',VISIBLE);
+	fprint(headingM,"                               SJF NON-PREEMPTIVE SCHEDULING (PREVENTING STARVATION)");
+	fprint(headingD,"PROCESS DETAILS\n\n  PID     ERT");
+	makeProcessTable(d_frame,Instance->P,Instance->CPU,INITIAL);
+	printf("\n");
 	pthread_create(&Process,NULL,&Processor,Instance);
 	pthread_create(&Throw,NULL,&Thrower,Instance);
 	pthread_join(Process,NULL);
 	pthread_join(Throw,NULL);
-
+	printStatistics(Instance->P,Instance->CPU);
+	seek_cur(45,2);
+	delframe(d_frame);
+	delframe(headingD);
+	delframe(headingM);
 	free(Instance->P);
-	printf("MEMORY FREED\n");
+	//printf("MEMORY FREED\n");
 }
 bool CPU_Initialiser(struct C_P* instancePtr,float Clock_Speed){
 	struct CPU_State* Cptr=instancePtr->CPU;
@@ -316,6 +356,7 @@ bool CPU_Initialiser(struct C_P* instancePtr,float Clock_Speed){
 	Cptr->INTERRUPT=0;
 	Cptr->PROCESS_COUNTER=0;
 	Cptr->nop=0;
+	Cptr->idleFor=0;
 	return 1;
 }
 
