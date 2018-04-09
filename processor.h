@@ -14,7 +14,6 @@ struct CPU_State{
 	int PROCESS_COUNTER;
 	int CLOCK;
 	int INTERRUPT;
-	int nop;
 	int idleFor;
 };//Structure for CPU instances.
 
@@ -49,7 +48,7 @@ void* Thrower(void* Object);
 void* Processor(void* Object);
 bool Simulation(struct C_P* Instance);
 bool CPU_Initialiser(struct C_P* instancePtr,float Clock_Speed);
-
+void printStatistics(struct ProcessStructure* p,struct CPU_State* cpu); 
 
 #endif
 
